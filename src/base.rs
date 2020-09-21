@@ -18,20 +18,18 @@ pub fn write_tree<P: AsRef<Path>>(dir: P) -> std::io::Result<String> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
+        let filename = entry.file_name().into_string().unwrap();
 
         if is_ignored(&path) {
             continue;
         }
-
-        let path_str = path.to_str().unwrap();
-
         if path.is_dir() {
-            tree_contents.push(format!("{}, {}", write_tree(&path)?, path_str));
+            tree_contents.push(format!("{} {}", write_tree(&path)?, filename));
         } else {
             tree_contents.push(format!(
-                "{}, {}",
+                "{} {}",
                 data::hash_object(&fs::read(&path)?, ObjectType::Blob)?,
-                path_str
+                filename
             ));
         }
     }
