@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate clap;
+use clap::{Arg, SubCommand};
 
 mod data;
 
@@ -12,9 +13,20 @@ fn main() {
             (about: "Initialize the repository")
         )
     )
+    // Some subcommands cannot be implemented using the macro syntax because
+    // they contain hyphens in the name
+    .subcommand(
+        SubCommand::with_name("hash-file")
+            .help("Hash a file into a stored object")
+            .arg(Arg::with_name("FILE").help("File to hash").required(true)),
+    )
     .get_matches();
 
-    if let Some(_matches) = matches.subcommand_matches("init") {
-        data::init();
+    match matches.subcommand() {
+        ("init", _) => data::init(),
+        ("hash-file", Some(submatches)) => {
+            println!("Gonna hash {}", submatches.value_of("FILE").unwrap());
+        }
+        _ => println!("{}", matches.usage()),
     }
 }
