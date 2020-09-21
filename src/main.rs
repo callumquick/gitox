@@ -2,6 +2,7 @@
 extern crate clap;
 use clap::{Arg, SubCommand};
 
+mod base;
 mod cli;
 mod data;
 
@@ -29,6 +30,10 @@ fn main() -> std::io::Result<()> {
                     .help("Object to retrieve")
                     .required(true),
             ),
+    )
+    .subcommand(
+        SubCommand::with_name("write-tree")
+            .about("Write current working directory to the object store"),
     )
     .get_matches();
 

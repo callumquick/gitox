@@ -1,12 +1,13 @@
 use sha1::{Digest, Sha1};
 use std::fs;
 
-const GIT_DIR: &str = ".gitox";
+pub const GIT_DIR: &str = ".gitox";
 const OBJECT_DIR: &str = ".gitox/objects";
 
 #[derive(Debug, PartialEq)]
 pub enum ObjectType {
     Blob,
+    Tree,
 }
 
 #[derive(Debug)]
@@ -18,6 +19,7 @@ pub struct Object {
 fn get_type_from_bytes(bytes: &[u8]) -> Option<ObjectType> {
     match bytes {
         b"blob" => Some(ObjectType::Blob),
+        b"tree" => Some(ObjectType::Tree),
         _ => None,
     }
 }
@@ -31,6 +33,7 @@ pub fn init() -> std::io::Result<()> {
 pub fn hash_object(contents: &[u8], t: ObjectType) -> std::io::Result<String> {
     let t_str = match t {
         ObjectType::Blob => "blob",
+        ObjectType::Tree => "tree",
     };
 
     // Format of an object is its type, null byte then the contents
