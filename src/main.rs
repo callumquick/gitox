@@ -1,9 +1,8 @@
 #[macro_use]
 extern crate clap;
 use clap::{Arg, SubCommand};
-use std::fs;
-use std::process::exit;
 
+mod cli;
 mod data;
 
 fn main() -> std::io::Result<()> {
@@ -33,21 +32,5 @@ fn main() -> std::io::Result<()> {
     )
     .get_matches();
 
-    match matches.subcommand() {
-        ("init", _) => data::init(),
-        ("hash-file", Some(submatches)) => {
-            let oid = data::hash_object(&fs::read(submatches.value_of("FILE").unwrap())?)?;
-            println!("{}", oid);
-            Ok(())
-        }
-        ("cat-file", Some(submatches)) => {
-            let contents = data::get_object(submatches.value_of("OBJECT").unwrap())?;
-            print!("{}", String::from_utf8_lossy(&contents));
-            Ok(())
-        }
-        _ => {
-            eprintln!("{}", matches.usage());
-            exit(1);
-        }
-    }
+    cli::handle(matches)
 }
