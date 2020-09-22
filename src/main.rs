@@ -14,6 +14,10 @@ fn main() -> std::io::Result<()> {
         (@subcommand init =>
             (about: "Initialize the repository")
         )
+        (@subcommand commit =>
+            (about: "Record changes to the repository")
+            (@arg message: -m <MESSAGE> "Message to record")
+        )
     )
     // Some subcommands cannot be implemented using the macro syntax because
     // they contain hyphens in the name

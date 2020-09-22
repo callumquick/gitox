@@ -1,5 +1,6 @@
 use crate::data::{self, ObjectType};
 use std::collections::HashMap;
+use std::convert::Into;
 use std::fs::{self, DirEntry};
 use std::path::{Component, Path, PathBuf};
 
@@ -20,14 +21,14 @@ fn write_tree_entry(dir_entry: DirEntry) -> std::io::Result<String> {
     return if path.is_dir() {
         Ok(format!(
             "{} {} {}",
-            data::get_type_string(ObjectType::Tree),
+            ObjectType::Tree,
             write_tree(&path)?,
             filename
         ))
     } else {
         Ok(format!(
             "{} {} {}",
-            data::get_type_string(ObjectType::Blob),
+            ObjectType::Blob,
             data::hash_object(&fs::read(&path)?, ObjectType::Blob)?,
             filename
         ))
@@ -59,14 +60,14 @@ fn get_tree_entry(tree_entry: &str) -> Option<TreeEntry> {
     let fields: Vec<&str> = tree_entry.splitn(3, ' ').collect();
     let t_bytes = fields.get(0)?.as_bytes();
     Some(TreeEntry {
-        t: data::get_type_from_bytes(t_bytes)?,
+        t: ObjectType::from(t_bytes),
         oid: fields.get(1)?.to_string(),
         name: fields.get(2)?.to_string(),
     })
 }
 
 fn get_tree_entries(tree_oid: &str) -> std::io::Result<Vec<TreeEntry>> {
-    let tree_contents = data::get_object(tree_oid, Some(ObjectType::Tree))?.contents;
+    let tree_contents = data::get_object(&tree_oid.to_string(), Some(ObjectType::Tree))?.contents;
     let tree_string = String::from_utf8_lossy(&tree_contents);
     Ok(tree_string
         .split("\n")
@@ -100,6 +101,14 @@ fn get_tree(tree_oid: &str, base_path: PathBuf) -> std::io::Result<HashMap<PathB
             }
             ObjectType::Tree => {
                 result.extend(get_tree(&entry.oid, path)?);
+            }
+            _ => {
+                // Other object types are not valid to be stored within tree
+                // objects (commit etc)
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Tree object contained object ID for bad type (not blob, tree)",
+                ));
             }
         }
     }
@@ -139,4 +148,39 @@ pub fn read_tree(tree_oid: &str) -> std::io::Result<()> {
         )?;
     }
     Ok(())
+}
+
+struct Commit {
+    tree: data::Oid,
+    parent: Option<data::Oid>,
+    message: String,
+}
+
+impl Into<String> for Commit {
+    fn into(self) -> String {
+        let mut commit = String::new();
+        let mut commit_headers = Vec::new();
+        commit_headers.push(format!("{} {}", ObjectType::Tree, self.tree));
+        if let Some(parent) = self.parent {
+            commit_headers.push(format!("parent {}", parent));
+        }
+        commit.push_str(&commit_headers.join("\n"));
+        // Message separator is a blank line
+        commit.push_str("\n\n");
+        commit.push_str(&self.message);
+
+        commit
+    }
+}
+
+pub fn commit(message: &str) -> std::io::Result<String> {
+    let commit = Commit {
+        tree: write_tree(".")?,
+        parent: data::get_head()?,
+        message: message.to_string(),
+    };
+    let commit_str: String = commit.into();
+    let oid = data::hash_object(commit_str.as_bytes(), ObjectType::Commit)?;
+    data::set_head(&oid)?;
+    Ok(oid)
 }
