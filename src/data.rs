@@ -56,12 +56,18 @@ pub fn get_object(oid: &str, expected: Option<ObjectType>) -> std::io::Result<Ob
     let raw = fs::read(format!("{}/{oid}", OBJECT_DIR, oid = oid))?;
 
     // Object type is the first byte slice before a null byte
-    let null_index = raw.iter().position(|byte| *byte == 0).unwrap();
-    let (t_bytes, contents) = raw.split_at(null_index);
+    let fields: Vec<&[u8]> = raw.splitn(2, |c| *c == 0).collect();
+    let t_bytes = fields.get(0).unwrap();
+    let contents = fields.get(1).unwrap();
     let t = get_type_from_bytes(t_bytes).unwrap();
 
     if let Some(expected) = expected {
-        assert_eq!(t, expected);
+        if expected != t {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Expected {:?}, retrieved {:?} object", expected, t),
+            ));
+        }
     }
 
     Ok(Object {
