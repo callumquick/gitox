@@ -35,6 +35,15 @@ fn main() -> std::io::Result<()> {
         SubCommand::with_name("write-tree")
             .about("Write current working directory to the object store"),
     )
+    .subcommand(
+        SubCommand::with_name("read-tree")
+            .about("Extract tree object into the working directory")
+            .arg(
+                Arg::with_name("OBJECT")
+                    .help("Tree object to extract")
+                    .required(true),
+            ),
+    )
     .get_matches();
 
     cli::handle(matches)

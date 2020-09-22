@@ -10,6 +10,7 @@ pub fn handle(matches: clap::ArgMatches) -> std::io::Result<()> {
         ("hash-file", Some(submatches)) => hash_file(submatches),
         ("cat-file", Some(submatches)) => cat_file(submatches),
         ("write-tree", Some(submatches)) => write_tree(submatches),
+        ("read-tree", Some(submatches)) => read_tree(submatches),
         _ => {
             eprintln!("{}", matches.usage());
             exit(1);
@@ -39,4 +40,8 @@ fn cat_file(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
 fn write_tree(_submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
     println!("{}", base::write_tree(".")?);
     Ok(())
+}
+
+fn read_tree(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
+    base::read_tree(submatches.value_of("OBJECT").unwrap())
 }

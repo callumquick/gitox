@@ -16,11 +16,18 @@ pub struct Object {
     pub contents: Vec<u8>,
 }
 
-fn get_type_from_bytes(bytes: &[u8]) -> Option<ObjectType> {
+pub fn get_type_from_bytes(bytes: &[u8]) -> Option<ObjectType> {
     match bytes {
         b"blob" => Some(ObjectType::Blob),
         b"tree" => Some(ObjectType::Tree),
         _ => None,
+    }
+}
+
+pub fn get_type_string(t: ObjectType) -> &'static str {
+    match t {
+        ObjectType::Blob => "blob",
+        ObjectType::Tree => "tree",
     }
 }
 
