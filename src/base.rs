@@ -1,6 +1,6 @@
-use crate::data::{self, ObjectType};
+use crate::data::{self, ObjectType, Oid};
 use std::collections::HashMap;
-use std::convert::Into;
+use std::convert::{Into, TryFrom};
 use std::fs::{self, DirEntry};
 use std::path::{Component, Path, PathBuf};
 
@@ -60,13 +60,13 @@ fn get_tree_entry(tree_entry: &str) -> Option<TreeEntry> {
     let fields: Vec<&str> = tree_entry.splitn(3, ' ').collect();
     let t_bytes = fields.get(0)?.as_bytes();
     Some(TreeEntry {
-        t: ObjectType::from(t_bytes),
+        t: ObjectType::try_from(t_bytes).unwrap(),
         oid: fields.get(1)?.to_string(),
         name: fields.get(2)?.to_string(),
     })
 }
 
-fn get_tree_entries(tree_oid: &str) -> std::io::Result<Vec<TreeEntry>> {
+fn get_tree_entries(tree_oid: &Oid) -> std::io::Result<Vec<TreeEntry>> {
     let tree_contents = data::get_object(&tree_oid.to_string(), Some(ObjectType::Tree))?.contents;
     let tree_string = String::from_utf8_lossy(&tree_contents);
     Ok(tree_string
@@ -75,7 +75,7 @@ fn get_tree_entries(tree_oid: &str) -> std::io::Result<Vec<TreeEntry>> {
         .collect())
 }
 
-fn get_tree(tree_oid: &str, base_path: PathBuf) -> std::io::Result<HashMap<PathBuf, String>> {
+fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> std::io::Result<HashMap<PathBuf, String>> {
     let mut result = HashMap::new();
     for entry in get_tree_entries(tree_oid)? {
         if entry.name == "." || entry.name == ".." || entry.name.contains('/') {
@@ -133,7 +133,7 @@ fn clear_dir<P: AsRef<Path>>(dir: P) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn read_tree(tree_oid: &str) -> std::io::Result<()> {
+pub fn read_tree(tree_oid: &Oid) -> std::io::Result<()> {
     let base_path = Path::new(".").to_path_buf();
     clear_dir(&base_path)?;
     for (path, oid) in get_tree(tree_oid, base_path)? {
@@ -150,10 +150,10 @@ pub fn read_tree(tree_oid: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-struct Commit {
-    tree: data::Oid,
-    parent: Option<data::Oid>,
-    message: String,
+pub struct Commit {
+    pub tree: Oid,
+    pub parent: Option<Oid>,
+    pub message: String,
 }
 
 impl Into<String> for Commit {
@@ -173,7 +173,51 @@ impl Into<String> for Commit {
     }
 }
 
-pub fn commit(message: &str) -> std::io::Result<String> {
+impl TryFrom<String> for Commit {
+    type Error = std::io::Error;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let lines: Vec<&str> = s.split("\n").collect();
+        let mut properties: HashMap<&str, &str> = HashMap::new();
+        let mut finished_header = false;
+        let mut message_lines: Vec<&str> = Vec::new();
+
+        for line in lines {
+            if line.is_empty() {
+                finished_header = true;
+            } else if !finished_header {
+                let fields: Vec<&str> = line.splitn(2, " ").collect();
+                if fields.len() != 2 {
+                    return Err(Self::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Commit file has corrupted property header",
+                    ));
+                }
+                let key = fields.get(0).unwrap();
+                let value = fields.get(1).unwrap();
+                properties.insert(key, value);
+            } else {
+                message_lines.push(line);
+            }
+        }
+
+        let message = message_lines.join("\n");
+
+        if !properties.contains_key("tree") {
+            return Err(Self::Error::new(
+                std::io::ErrorKind::Other,
+                "Commit file does not contain 'tree' field",
+            ));
+        }
+
+        Ok(Commit {
+            tree: properties.get("tree").unwrap().to_string(),
+            parent: properties.get("parent").map(|s| s.to_string()),
+            message: message,
+        })
+    }
+}
+
+pub fn commit(message: &str) -> std::io::Result<Oid> {
     let commit = Commit {
         tree: write_tree(".")?,
         parent: data::get_head()?,
@@ -183,4 +227,13 @@ pub fn commit(message: &str) -> std::io::Result<String> {
     let oid = data::hash_object(commit_str.as_bytes(), ObjectType::Commit)?;
     data::set_head(&oid)?;
     Ok(oid)
+}
+
+pub fn get_commit(oid: &Oid) -> std::io::Result<Commit> {
+    let commit = data::get_object(oid, Some(ObjectType::Commit))?;
+    Ok(Commit::try_from(
+        String::from_utf8_lossy(&commit.contents)
+            .to_owned()
+            .to_string(),
+    )?)
 }

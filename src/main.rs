@@ -18,6 +18,14 @@ fn main() -> std::io::Result<()> {
             (about: "Record changes to the repository")
             (@arg message: -m <MESSAGE> "Message to record")
         )
+        (@subcommand log =>
+            (about: "Show commit logs")
+            (@arg OID: !required "Commit object to show the log for")
+        )
+        (@subcommand checkout =>
+            (about: "Switch branches or restore working tree files")
+            (@arg OID: +required "Commit to checkout")
+        )
     )
     // Some subcommands cannot be implemented using the macro syntax because
     // they contain hyphens in the name
@@ -30,7 +38,7 @@ fn main() -> std::io::Result<()> {
         SubCommand::with_name("cat-file")
             .about("Retrieve a stored object file")
             .arg(
-                Arg::with_name("OBJECT")
+                Arg::with_name("OID")
                     .help("Object to retrieve")
                     .required(true),
             ),
@@ -43,7 +51,7 @@ fn main() -> std::io::Result<()> {
         SubCommand::with_name("read-tree")
             .about("Extract tree object into the working directory")
             .arg(
-                Arg::with_name("OBJECT")
+                Arg::with_name("OID")
                     .help("Tree object to extract")
                     .required(true),
             ),
