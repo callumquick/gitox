@@ -250,10 +250,19 @@ pub fn get_oid(ref_: &str) -> Result<Oid> {
         format!("refs/tags/{}", ref_),
         format!("refs/heads/{}", ref_),
     ];
+
     for path in &paths_to_try {
         if let Some(oid) = data::get_ref(&path)? {
             return Ok(oid);
         }
     }
+
+    if ref_.len() != 40 || ref_.chars().any(|c| !c.is_ascii_hexdigit()) {
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!("Unknown name given: {}", ref_),
+        ));
+    }
+
     Ok(ref_.to_string())
 }
