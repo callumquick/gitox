@@ -26,6 +26,11 @@ fn main() -> std::io::Result<()> {
             (about: "Switch branches or restore working tree files")
             (@arg OID: +required "Commit to checkout")
         )
+        (@subcommand tag =>
+            (about: "Create tag object referencing a commit")
+            (@arg NAME: +required "Tag name")
+            (@arg OID: !required "Commit to tag")
+        )
     )
     // Some subcommands cannot be implemented using the macro syntax because
     // they contain hyphens in the name

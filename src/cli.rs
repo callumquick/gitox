@@ -2,9 +2,10 @@ use crate::base;
 use crate::data;
 use crate::data::ObjectType;
 use std::fs;
+use std::io::{Error, ErrorKind, Result};
 use std::process::exit;
 
-pub fn handle(matches: clap::ArgMatches) -> std::io::Result<()> {
+pub fn handle(matches: clap::ArgMatches) -> Result<()> {
     match matches.subcommand() {
         ("init", Some(submatches)) => init(submatches),
         ("hash-file", Some(submatches)) => hash_file(submatches),
@@ -14,6 +15,7 @@ pub fn handle(matches: clap::ArgMatches) -> std::io::Result<()> {
         ("commit", Some(submatches)) => commit(submatches),
         ("log", Some(submatches)) => log(submatches),
         ("checkout", Some(submatches)) => checkout(submatches),
+        ("tag", Some(submatches)) => tag(submatches),
         _ => {
             eprintln!("{}", matches.usage());
             exit(1);
@@ -21,11 +23,11 @@ pub fn handle(matches: clap::ArgMatches) -> std::io::Result<()> {
     }
 }
 
-fn init(_submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
+fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
     data::init()
 }
 
-fn hash_file(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
+fn hash_file(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let oid = data::hash_object(
         &fs::read(submatches.value_of("FILE").unwrap())?,
         ObjectType::Blob,
@@ -34,31 +36,32 @@ fn hash_file(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
     Ok(())
 }
 
-fn cat_file(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
-    let object = data::get_object(&submatches.value_of("OID").unwrap().to_string(), None)?;
+fn cat_file(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let oid = &base::get_oid(submatches.value_of("OID").unwrap())?;
+    let object = data::get_object(&oid, None)?;
     print!("{}", String::from_utf8_lossy(&object.contents));
     Ok(())
 }
 
-fn write_tree(_submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
+fn write_tree(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
     println!("{}", base::write_tree(".")?);
     Ok(())
 }
 
-fn read_tree(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
-    base::read_tree(&submatches.value_of("OID").unwrap().to_string())
+fn read_tree(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    base::read_tree(&base::get_oid(submatches.value_of("OID").unwrap())?)
 }
 
-fn commit(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
+fn commit(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let message = submatches.value_of("message").unwrap();
     println!("{}", base::commit(message)?);
     Ok(())
 }
 
-fn log(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
+fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let mut parent = match submatches.value_of("OID") {
-        Some(oid) => Some(oid.to_string()),
-        None => data::get_head()?,
+        Some(oid) => Some(base::get_oid(oid)?),
+        None => data::get_ref("HEAD")?,
     };
     while let Some(oid) = parent {
         let commit = base::get_commit(&oid)?;
@@ -72,9 +75,22 @@ fn log(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
     Ok(())
 }
 
-fn checkout(submatches: &clap::ArgMatches<'_>) -> std::io::Result<()> {
-    let oid = submatches.value_of("OID").unwrap().to_string();
+fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
     let commit = base::get_commit(&oid)?;
     base::read_tree(&commit.tree)?;
-    data::set_head(&oid)
+    data::update_ref("HEAD", &oid)
+}
+
+fn tag(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let name = submatches.value_of("NAME").unwrap();
+    let oid = match submatches.value_of("OID") {
+        Some(oid) => Some(base::get_oid(oid)?),
+        None => data::get_ref("HEAD")?,
+    };
+    let oid = oid.ok_or(Error::new(
+        ErrorKind::Other,
+        "No valid object ID or ref provided nor stored in HEAD",
+    ))?;
+    base::create_tag(name, &oid)
 }

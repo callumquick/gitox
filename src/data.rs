@@ -1,11 +1,13 @@
 use sha1::{Digest, Sha1};
 use std::convert::TryFrom;
 use std::fs;
+use std::io::{Error, ErrorKind, Result};
 use std::path::Path;
 use std::str::FromStr;
 
 pub const GIT_DIR: &str = ".gitox";
 const OBJECT_DIR: &str = ".gitox/objects";
+const REF_DIR: &str = ".gitox/refs";
 
 #[derive(Debug, PartialEq)]
 pub enum ObjectType {
@@ -29,14 +31,14 @@ impl std::fmt::Display for ObjectType {
 }
 
 impl FromStr for ObjectType {
-    type Err = std::io::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "blob" => Ok(ObjectType::Blob),
             "tree" => Ok(ObjectType::Tree),
             "commit" => Ok(ObjectType::Commit),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            _ => Err(Error::new(
+                ErrorKind::Other,
                 "Parsed string cannot represent a known object type",
             )),
         }
@@ -44,8 +46,8 @@ impl FromStr for ObjectType {
 }
 
 impl TryFrom<&[u8]> for ObjectType {
-    type Error = std::io::Error;
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+    type Error = Error;
+    fn try_from(bytes: &[u8]) -> Result<Self> {
         Self::from_str(&String::from_utf8(bytes.to_vec()).unwrap())
     }
 }
@@ -58,13 +60,14 @@ pub struct Object {
 
 pub type Oid = String;
 
-pub fn init() -> std::io::Result<()> {
+pub fn init() -> Result<()> {
     fs::create_dir_all(GIT_DIR)?;
     fs::create_dir_all(OBJECT_DIR)?;
+    fs::create_dir_all(REF_DIR)?;
     Ok(())
 }
 
-pub fn hash_object(contents: &[u8], t: ObjectType) -> std::io::Result<Oid> {
+pub fn hash_object(contents: &[u8], t: ObjectType) -> Result<Oid> {
     // Format of an object is its type, null byte then the contents
     let t_str = format!("{}", t);
     let data = [t_str.as_bytes(), b"\x00", contents].concat();
@@ -75,7 +78,7 @@ pub fn hash_object(contents: &[u8], t: ObjectType) -> std::io::Result<Oid> {
     Ok(oid)
 }
 
-pub fn get_object(oid: &Oid, expected: Option<ObjectType>) -> std::io::Result<Object> {
+pub fn get_object(oid: &Oid, expected: Option<ObjectType>) -> Result<Object> {
     let raw = fs::read(format!("{}/{oid}", OBJECT_DIR, oid = oid))?;
 
     // Object type is the first byte slice before a null byte
@@ -86,8 +89,8 @@ pub fn get_object(oid: &Oid, expected: Option<ObjectType>) -> std::io::Result<Ob
 
     if let Some(expected) = expected {
         if expected != t {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(Error::new(
+                ErrorKind::Other,
                 format!("Expected {:?}, retrieved {:?} object", expected, t),
             ));
         }
@@ -99,15 +102,18 @@ pub fn get_object(oid: &Oid, expected: Option<ObjectType>) -> std::io::Result<Ob
     })
 }
 
-pub fn set_head(oid: &Oid) -> std::io::Result<()> {
-    fs::write(format!("{}/HEAD", GIT_DIR), oid)
+pub fn update_ref(ref_: &str, oid: &Oid) -> Result<()> {
+    let ref_object = format!("{}/{}", GIT_DIR, ref_);
+    let ref_path = Path::new(&ref_object);
+    fs::create_dir_all(ref_path.parent().unwrap())?;
+    fs::write(ref_object, oid)
 }
 
-pub fn get_head() -> std::io::Result<Option<Oid>> {
-    let head = format!("{}/HEAD", GIT_DIR);
-    let head_path = Path::new(&head);
-    Ok(match head_path.exists() {
+pub fn get_ref(ref_: &str) -> Result<Option<Oid>> {
+    let ref_object = format!("{}/{}", GIT_DIR, ref_);
+    let ref_path = Path::new(&ref_object);
+    Ok(match ref_path.exists() {
         false => None,
-        true => Some(Oid::from_utf8_lossy(&fs::read(head_path)?).to_string()),
+        true => Some(Oid::from_utf8_lossy(&fs::read(ref_path)?).to_string()),
     })
 }

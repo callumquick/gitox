@@ -2,6 +2,7 @@ use crate::data::{self, ObjectType, Oid};
 use std::collections::HashMap;
 use std::convert::{Into, TryFrom};
 use std::fs::{self, DirEntry};
+use std::io::{Error, ErrorKind, Result};
 use std::path::{Component, Path, PathBuf};
 
 fn is_ignored(path: &Path) -> bool {
@@ -15,7 +16,7 @@ fn is_ignored(path: &Path) -> bool {
     false
 }
 
-fn write_tree_entry(dir_entry: DirEntry) -> std::io::Result<String> {
+fn write_tree_entry(dir_entry: DirEntry) -> Result<String> {
     let path = dir_entry.path();
     let filename = dir_entry.file_name().into_string().unwrap();
     return if path.is_dir() {
@@ -35,7 +36,7 @@ fn write_tree_entry(dir_entry: DirEntry) -> std::io::Result<String> {
     };
 }
 
-pub fn write_tree<P: AsRef<Path>>(dir: P) -> std::io::Result<String> {
+pub fn write_tree<P: AsRef<Path>>(dir: P) -> Result<String> {
     let mut tree_contents = Vec::new();
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
@@ -66,7 +67,7 @@ fn get_tree_entry(tree_entry: &str) -> Option<TreeEntry> {
     })
 }
 
-fn get_tree_entries(tree_oid: &Oid) -> std::io::Result<Vec<TreeEntry>> {
+fn get_tree_entries(tree_oid: &Oid) -> Result<Vec<TreeEntry>> {
     let tree_contents = data::get_object(&tree_oid.to_string(), Some(ObjectType::Tree))?.contents;
     let tree_string = String::from_utf8_lossy(&tree_contents);
     Ok(tree_string
@@ -75,14 +76,11 @@ fn get_tree_entries(tree_oid: &Oid) -> std::io::Result<Vec<TreeEntry>> {
         .collect())
 }
 
-fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> std::io::Result<HashMap<PathBuf, String>> {
+fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> Result<HashMap<PathBuf, String>> {
     let mut result = HashMap::new();
     for entry in get_tree_entries(tree_oid)? {
         if entry.name == "." || entry.name == ".." || entry.name.contains('/') {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Bad entry in tree object",
-            ));
+            return Err(Error::new(ErrorKind::Other, "Bad entry in tree object"));
         }
         let base_path = Path::new(&base_path);
         let path = base_path.join(entry.name);
@@ -92,8 +90,8 @@ fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> std::io::Result<HashMap<PathB
                 let old_oid = result.insert(path, entry.oid.clone());
                 if let Some(old_oid) = old_oid {
                     if old_oid != entry.oid {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
+                        return Err(Error::new(
+                            ErrorKind::Other,
                             "Tree object contains multiple object IDs for the same file",
                         ));
                     }
@@ -105,8 +103,8 @@ fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> std::io::Result<HashMap<PathB
             _ => {
                 // Other object types are not valid to be stored within tree
                 // objects (commit etc)
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(Error::new(
+                    ErrorKind::Other,
                     "Tree object contained object ID for bad type (not blob, tree)",
                 ));
             }
@@ -115,7 +113,7 @@ fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> std::io::Result<HashMap<PathB
     Ok(result)
 }
 
-fn clear_dir<P: AsRef<Path>>(dir: P) -> std::io::Result<()> {
+fn clear_dir<P: AsRef<Path>>(dir: P) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -133,7 +131,7 @@ fn clear_dir<P: AsRef<Path>>(dir: P) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn read_tree(tree_oid: &Oid) -> std::io::Result<()> {
+pub fn read_tree(tree_oid: &Oid) -> Result<()> {
     let base_path = Path::new(".").to_path_buf();
     clear_dir(&base_path)?;
     for (path, oid) in get_tree(tree_oid, base_path)? {
@@ -174,8 +172,8 @@ impl Into<String> for Commit {
 }
 
 impl TryFrom<String> for Commit {
-    type Error = std::io::Error;
-    fn try_from(s: String) -> Result<Self, Self::Error> {
+    type Error = Error;
+    fn try_from(s: String) -> Result<Self> {
         let lines: Vec<&str> = s.split("\n").collect();
         let mut properties: HashMap<&str, &str> = HashMap::new();
         let mut finished_header = false;
@@ -188,7 +186,7 @@ impl TryFrom<String> for Commit {
                 let fields: Vec<&str> = line.splitn(2, " ").collect();
                 if fields.len() != 2 {
                     return Err(Self::Error::new(
-                        std::io::ErrorKind::Other,
+                        ErrorKind::Other,
                         "Commit file has corrupted property header",
                     ));
                 }
@@ -204,7 +202,7 @@ impl TryFrom<String> for Commit {
 
         if !properties.contains_key("tree") {
             return Err(Self::Error::new(
-                std::io::ErrorKind::Other,
+                ErrorKind::Other,
                 "Commit file does not contain 'tree' field",
             ));
         }
@@ -217,23 +215,45 @@ impl TryFrom<String> for Commit {
     }
 }
 
-pub fn commit(message: &str) -> std::io::Result<Oid> {
+pub fn commit(message: &str) -> Result<Oid> {
     let commit = Commit {
         tree: write_tree(".")?,
-        parent: data::get_head()?,
+        parent: data::get_ref("HEAD")?,
         message: message.to_string(),
     };
     let commit_str: String = commit.into();
     let oid = data::hash_object(commit_str.as_bytes(), ObjectType::Commit)?;
-    data::set_head(&oid)?;
+    data::update_ref("HEAD", &oid)?;
     Ok(oid)
 }
 
-pub fn get_commit(oid: &Oid) -> std::io::Result<Commit> {
+pub fn get_commit(oid: &Oid) -> Result<Commit> {
     let commit = data::get_object(oid, Some(ObjectType::Commit))?;
     Ok(Commit::try_from(
         String::from_utf8_lossy(&commit.contents)
             .to_owned()
             .to_string(),
     )?)
+}
+
+pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
+    let tag_path = format!("refs/tags/{}", name);
+    data::update_ref(&tag_path, oid)
+}
+
+/// Attempt to retrieve the OID from a reference, but otherwise return the
+/// reference assuming it is itself an OID.
+pub fn get_oid(ref_: &str) -> Result<Oid> {
+    let paths_to_try = [
+        format!("{}", ref_),
+        format!("refs/{}", ref_),
+        format!("refs/tags/{}", ref_),
+        format!("refs/heads/{}", ref_),
+    ];
+    for path in &paths_to_try {
+        if let Some(oid) = data::get_ref(&path)? {
+            return Ok(oid);
+        }
+    }
+    Ok(ref_.to_string())
 }
