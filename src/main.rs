@@ -14,6 +14,9 @@ fn main() -> std::io::Result<()> {
         (@subcommand init =>
             (about: "Initialize the repository")
         )
+        (@subcommand k =>
+            (about: "Visualize the repository")
+        )
         (@subcommand commit =>
             (about: "Record changes to the repository")
             (@arg message: -m <MESSAGE> "Message to record")

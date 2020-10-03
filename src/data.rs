@@ -117,3 +117,30 @@ pub fn get_ref(ref_: &str) -> Result<Option<Oid>> {
         true => Some(Oid::from_utf8_lossy(&fs::read(ref_path)?).to_string()),
     })
 }
+
+fn append_ref_paths(mut v: Vec<String>, dir: &Path) -> Result<Vec<String>> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.path().is_dir() {
+            v = append_ref_paths(v, entry.path().as_path())?;
+        } else {
+            v.push(
+                entry
+                    .path()
+                    .strip_prefix(GIT_DIR)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
+            );
+        }
+    }
+    Ok(v)
+}
+
+pub fn iter_refs() -> Result<std::vec::IntoIter<String>> {
+    let mut refs: Vec<String> = Vec::new();
+    refs.push("HEAD".to_string());
+    refs = append_ref_paths(refs, Path::new(REF_DIR))?;
+    Ok(refs.into_iter())
+}

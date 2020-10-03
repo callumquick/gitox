@@ -8,6 +8,7 @@ use std::process::exit;
 pub fn handle(matches: clap::ArgMatches) -> Result<()> {
     match matches.subcommand() {
         ("init", Some(submatches)) => init(submatches),
+        ("k", Some(submatches)) => gitk(submatches),
         ("hash-file", Some(submatches)) => hash_file(submatches),
         ("cat-file", Some(submatches)) => cat_file(submatches),
         ("write-tree", Some(submatches)) => write_tree(submatches),
@@ -25,6 +26,13 @@ pub fn handle(matches: clap::ArgMatches) -> Result<()> {
 
 fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
     data::init()
+}
+
+fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    for ref_ in data::iter_refs()? {
+        println!("{:30} {:40}", ref_, data::get_ref(&ref_)?.unwrap());
+    }
+    Ok(())
 }
 
 fn hash_file(submatches: &clap::ArgMatches<'_>) -> Result<()> {
