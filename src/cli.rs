@@ -29,8 +29,8 @@ fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
 }
 
 fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
-    for ref_ in data::iter_refs()? {
-        println!("{:30} {:40}", ref_, data::get_ref(&ref_)?.unwrap());
+    for (ref_, oid) in data::iter_refs()? {
+        println!("{:30} {:40}", ref_, oid.unwrap_or("N/A".to_string()));
     }
     Ok(())
 }

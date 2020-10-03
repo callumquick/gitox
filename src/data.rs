@@ -138,9 +138,14 @@ fn append_ref_paths(mut v: Vec<String>, dir: &Path) -> Result<Vec<String>> {
     Ok(v)
 }
 
-pub fn iter_refs() -> Result<std::vec::IntoIter<String>> {
-    let mut refs: Vec<String> = Vec::new();
-    refs.push("HEAD".to_string());
-    refs = append_ref_paths(refs, Path::new(REF_DIR))?;
+pub fn iter_refs() -> Result<std::vec::IntoIter<(String, Option<Oid>)>> {
+    let mut refpaths: Vec<String> = Vec::new();
+    let mut refs: Vec<(String, Option<Oid>)> = Vec::new();
+    refpaths.push("HEAD".to_string());
+    refpaths = append_ref_paths(refpaths, Path::new(REF_DIR))?;
+    for refpath in refpaths {
+        let oid = get_ref(&refpath)?;
+        refs.push((refpath, oid));
+    }
     Ok(refs.into_iter())
 }
