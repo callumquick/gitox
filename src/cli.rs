@@ -2,7 +2,7 @@ use crate::base;
 use crate::data;
 use crate::data::ObjectType;
 use std::fs;
-use std::io::{Error, ErrorKind, Result};
+use std::io::{Result};
 use std::process::exit;
 
 pub fn handle(matches: clap::ArgMatches) -> Result<()> {
@@ -59,10 +59,7 @@ fn commit(submatches: &clap::ArgMatches<'_>) -> Result<()> {
 }
 
 fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
-    let mut parent = match submatches.value_of("OID") {
-        Some(oid) => Some(base::get_oid(oid)?),
-        None => data::get_ref("HEAD")?,
-    };
+    let mut parent = Some(base::get_oid(submatches.value_of("OID").unwrap())?);
     while let Some(oid) = parent {
         let commit = base::get_commit(&oid)?;
 
@@ -84,13 +81,6 @@ fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
 
 fn tag(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let name = submatches.value_of("NAME").unwrap();
-    let oid = match submatches.value_of("OID") {
-        Some(oid) => Some(base::get_oid(oid)?),
-        None => data::get_ref("HEAD")?,
-    };
-    let oid = oid.ok_or(Error::new(
-        ErrorKind::Other,
-        "No valid object ID or ref provided nor stored in HEAD",
-    ))?;
+    let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
     base::create_tag(name, &oid)
 }

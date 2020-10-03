@@ -244,11 +244,17 @@ pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
 /// Attempt to retrieve the OID from a reference, but otherwise return the
 /// reference assuming it is itself an OID.
 pub fn get_oid(ref_: &str) -> Result<Oid> {
+    let ref_translations: HashMap<&str, &str> = [("@", "HEAD")].iter().cloned().collect();
+    let ref_str = match ref_translations.get(ref_) {
+        Some(ref_str) => ref_str,
+        None => ref_,
+    };
+
     let paths_to_try = [
-        format!("{}", ref_),
-        format!("refs/{}", ref_),
-        format!("refs/tags/{}", ref_),
-        format!("refs/heads/{}", ref_),
+        format!("{}", ref_str),
+        format!("refs/{}", ref_str),
+        format!("refs/tags/{}", ref_str),
+        format!("refs/heads/{}", ref_str),
     ];
 
     for path in &paths_to_try {

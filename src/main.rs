@@ -20,20 +20,21 @@ fn main() -> std::io::Result<()> {
         )
         (@subcommand log =>
             (about: "Show commit logs")
-            (@arg OID: !required "Commit object to show the log for")
+            (@arg OID: default_value[HEAD] "Commit object to show the log for")
         )
         (@subcommand checkout =>
             (about: "Switch branches or restore working tree files")
-            (@arg OID: +required "Commit to checkout")
+            (@arg OID: default_value[HEAD] "Commit to checkout")
         )
         (@subcommand tag =>
             (about: "Create tag object referencing a commit")
             (@arg NAME: +required "Tag name")
-            (@arg OID: !required "Commit to tag")
+            (@arg OID: default_value[HEAD] "Commit to tag")
         )
     )
     // Some subcommands cannot be implemented using the macro syntax because
-    // they contain hyphens in the name
+    // they contain hyphens in the name or need to use other macro reserved
+    // characters
     .subcommand(
         SubCommand::with_name("hash-file")
             .about("Hash a file into a stored object")
