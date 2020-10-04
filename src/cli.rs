@@ -2,8 +2,9 @@ use crate::base;
 use crate::data::{self, ObjectType, Oid};
 use std::collections::HashSet;
 use std::fs;
-use std::io::Result;
+use std::io::{Result, Write};
 use std::process::exit;
+use std::process::{Command, Stdio};
 
 pub fn handle(matches: clap::ArgMatches) -> Result<()> {
     match matches.subcommand() {
@@ -29,20 +30,41 @@ fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
 }
 
 fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let mut dot_input: Vec<String> = Vec::new();
     let mut oids: HashSet<Oid> = HashSet::new();
+
+    dot_input.push("digraph commits {".to_string());
+
     for (ref_, oid) in data::iter_refs()? {
         if let Some(oid) = oid {
-            println!("{:30} {:40}", ref_, oid);
+            dot_input.push(format!("\"{}\" [shape=note]", ref_));
+            dot_input.push(format!("\"{}\" -> \"{}\"", ref_, oid));
             oids.insert(oid);
         }
     }
+
     for oid in base::iter_commits_and_parents(oids.into_iter())? {
         let commit = base::get_commit(&oid)?;
-        println!("{}", oid);
+        dot_input.push(format!(
+            "\"{}\" [shape=box style=filled label=\"{}\"]",
+            oid,
+            oid.chars().take(10).collect::<String>()
+        ));
         if let Some(parent) = commit.parent {
-            println!("Parent: {}", parent);
+            dot_input.push(format!("\"{}\" -> \"{}\"", oid, parent));
         }
     }
+
+    dot_input.push("}".to_string());
+
+    let proc = Command::new("dot")
+        .arg("-Tgtk")
+        .arg("/dev/stdin")
+        .stdin(Stdio::piped())
+        .spawn()?;
+    proc.stdin
+        .expect("'dot' did not wait to read stdin")
+        .write(dot_input.join("\n").as_bytes())?;
     Ok(())
 }
 
