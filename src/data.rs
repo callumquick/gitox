@@ -117,9 +117,11 @@ fn get_ref_internal(ref_: &str, deref: bool) -> Result<(String, RefValue)> {
         false => None,
         true => Some(Oid::from_utf8_lossy(&fs::read(ref_path)?).to_string()),
     };
+    let mut value = ref_value.clone();
 
-    if let Some(ref_value) = ref_value.clone() {
+    if let Some(ref_value) = ref_value {
         if let Some(sym_ref) = ref_value.strip_prefix("ref: ") {
+            value = Some(sym_ref.to_string());
             symbolic = true;
             if deref {
                 // Recursively dereference the symbolic ref
@@ -132,7 +134,7 @@ fn get_ref_internal(ref_: &str, deref: bool) -> Result<(String, RefValue)> {
         ref_.to_string(),
         RefValue {
             symbolic,
-            value: ref_value,
+            value: value,
         },
     ))
 }

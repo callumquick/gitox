@@ -243,6 +243,32 @@ pub fn get_commit(oid: &Oid) -> Result<Commit> {
     )?)
 }
 
+pub fn is_branch(name: &str) -> Result<bool> {
+    Ok(data::get_ref(&format!("refs/heads/{}", name), true)?
+        .value
+        .is_some())
+}
+
+pub fn checkout(name: &str) -> Result<()> {
+    let oid = get_oid(name)?;
+    let commit = get_commit(&oid)?;
+    read_tree(&commit.tree)?;
+
+    let head = if is_branch(name)? {
+        RefValue {
+            symbolic: true,
+            value: Some(format!("refs/heads/{}", name)),
+        }
+    } else {
+        RefValue {
+            symbolic: false,
+            value: Some(oid),
+        }
+    };
+
+    data::update_ref("HEAD", head, false)
+}
+
 pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
     let tag_path = format!("refs/tags/{}", name);
     data::update_ref(

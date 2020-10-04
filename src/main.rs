@@ -27,7 +27,7 @@ fn main() -> std::io::Result<()> {
         )
         (@subcommand checkout =>
             (about: "Switch branches or restore working tree files")
-            (@arg OID: default_value[HEAD] "Commit to checkout")
+            (@arg COMMIT: default_value[HEAD] "Commit or branch to checkout")
         )
         (@subcommand tag =>
             (about: "Create tag object referencing a commit")
