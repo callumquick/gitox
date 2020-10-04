@@ -138,7 +138,7 @@ fn append_ref_paths(mut v: Vec<String>, dir: &Path) -> Result<Vec<String>> {
     Ok(v)
 }
 
-pub fn iter_refs() -> Result<std::vec::IntoIter<(String, Option<Oid>)>> {
+pub fn iter_refs() -> Result<impl Iterator<Item = (String, Option<Oid>)>> {
     let mut refpaths: Vec<String> = Vec::new();
     let mut refs: Vec<(String, Option<Oid>)> = Vec::new();
     refpaths.push("HEAD".to_string());

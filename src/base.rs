@@ -1,5 +1,5 @@
 use crate::data::{self, ObjectType, Oid};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::{Into, TryFrom};
 use std::fs::{self, DirEntry};
 use std::io::{Error, ErrorKind, Result};
@@ -245,10 +245,7 @@ pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
 /// reference assuming it is itself an OID.
 pub fn get_oid(ref_: &str) -> Result<Oid> {
     let ref_translations: HashMap<&str, &str> = [("@", "HEAD")].iter().cloned().collect();
-    let ref_str = match ref_translations.get(ref_) {
-        Some(ref_str) => ref_str,
-        None => ref_,
-    };
+    let ref_str: &str = ref_translations.get(ref_).unwrap_or(&ref_);
 
     let paths_to_try = [
         format!("{}", ref_str),
@@ -271,4 +268,40 @@ pub fn get_oid(ref_: &str) -> Result<Oid> {
     }
 
     Ok(ref_.to_string())
+}
+
+trait HashSetExt<T> {
+    // HashSet does not have 'pop', which this approximates
+    fn pop(&mut self) -> T;
+}
+
+impl<T: Eq + Clone + std::hash::Hash> HashSetExt<T> for HashSet<T> {
+    fn pop(&mut self) -> T {
+        let item = self.iter().next().unwrap().clone();
+        self.take(&item).unwrap()
+    }
+}
+
+pub fn iter_commits_and_parents(
+    oids: impl Iterator<Item = Oid>,
+) -> Result<impl Iterator<Item = Oid>> {
+    let mut commits: Vec<Oid> = Vec::new();
+    let mut oidset: HashSet<Oid> = oids.collect();
+    let mut visited: HashSet<Oid> = HashSet::new();
+
+    while !oidset.is_empty() {
+        let oid = oidset.pop();
+
+        if !visited.insert(oid.clone()) {
+            continue;
+        }
+
+        let commit = get_commit(&oid)?;
+        if commit.parent.is_some() {
+            oidset.insert(commit.parent.unwrap());
+        }
+        commits.push(oid);
+    }
+
+    Ok(commits.into_iter())
 }

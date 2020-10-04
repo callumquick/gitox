@@ -1,8 +1,8 @@
 use crate::base;
-use crate::data;
-use crate::data::ObjectType;
+use crate::data::{self, ObjectType, Oid};
+use std::collections::HashSet;
 use std::fs;
-use std::io::{Result};
+use std::io::Result;
 use std::process::exit;
 
 pub fn handle(matches: clap::ArgMatches) -> Result<()> {
@@ -29,8 +29,19 @@ fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
 }
 
 fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let mut oids: HashSet<Oid> = HashSet::new();
     for (ref_, oid) in data::iter_refs()? {
-        println!("{:30} {:40}", ref_, oid.unwrap_or("N/A".to_string()));
+        if let Some(oid) = oid {
+            println!("{:30} {:40}", ref_, oid);
+            oids.insert(oid);
+        }
+    }
+    for oid in base::iter_commits_and_parents(oids.into_iter())? {
+        let commit = base::get_commit(&oid)?;
+        println!("{}", oid);
+        if let Some(parent) = commit.parent {
+            println!("Parent: {}", parent);
+        }
     }
     Ok(())
 }
