@@ -18,6 +18,7 @@ pub fn handle(matches: clap::ArgMatches) -> Result<()> {
         ("log", Some(submatches)) => log(submatches),
         ("checkout", Some(submatches)) => checkout(submatches),
         ("tag", Some(submatches)) => tag(submatches),
+        ("branch", Some(submatches)) => branch(submatches),
         _ => {
             eprintln!("{}", matches.usage());
             exit(1);
@@ -48,7 +49,7 @@ fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
         dot_input.push(format!(
             "\"{}\" [shape=box style=filled label=\"{}\"]",
             oid,
-            oid.chars().take(10).collect::<String>()
+            &oid[..10]
         ));
         if let Some(parent) = commit.parent {
             dot_input.push(format!("\"{}\" -> \"{}\"", oid, parent));
@@ -122,4 +123,12 @@ fn tag(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let name = submatches.value_of("NAME").unwrap();
     let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
     base::create_tag(name, &oid)
+}
+
+fn branch(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let name = submatches.value_of("NAME").unwrap();
+    let start = base::get_oid(submatches.value_of("START").unwrap())?;
+    base::create_branch(name, &start)?;
+    println!("Branch '{}' created at {}", name, &start[..10]);
+    Ok(())
 }

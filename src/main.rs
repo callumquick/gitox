@@ -34,6 +34,11 @@ fn main() -> std::io::Result<()> {
             (@arg NAME: +required "Tag name")
             (@arg OID: default_value[HEAD] "Commit to tag")
         )
+        (@subcommand branch =>
+            (about: "Create a new branch")
+            (@arg NAME: +required "Branch name")
+            (@arg START: default_value[HEAD] "Start the branch at a given commit")
+        )
     )
     // Some subcommands cannot be implemented using the macro syntax because
     // they contain hyphens in the name or need to use other macro reserved

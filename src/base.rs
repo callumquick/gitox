@@ -241,6 +241,11 @@ pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
     data::update_ref(&tag_path, oid)
 }
 
+pub fn create_branch(name: &str, oid: &Oid) -> Result<()> {
+    let tag_path = format!("refs/heads/{}", name);
+    data::update_ref(&tag_path, oid)
+}
+
 /// Attempt to retrieve the OID from a reference, but otherwise return the
 /// reference assuming it is itself an OID.
 pub fn get_oid(ref_: &str) -> Result<Oid> {

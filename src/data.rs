@@ -8,6 +8,7 @@ use std::str::FromStr;
 pub const GIT_DIR: &str = ".gitox";
 const OBJECT_DIR: &str = ".gitox/objects";
 const REF_DIR: &str = ".gitox/refs";
+const HEAD_DIR: &str = ".gitox/heads";
 
 #[derive(Debug, PartialEq)]
 pub enum ObjectType {
@@ -64,6 +65,7 @@ pub fn init() -> Result<()> {
     fs::create_dir_all(GIT_DIR)?;
     fs::create_dir_all(OBJECT_DIR)?;
     fs::create_dir_all(REF_DIR)?;
+    fs::create_dir_all(HEAD_DIR)?;
     Ok(())
 }
 
