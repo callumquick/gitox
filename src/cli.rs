@@ -120,7 +120,7 @@ fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
         "HEAD",
         RefValue {
             symbolic: false,
-            value: oid,
+            value: Some(oid),
         },
     )
 }
