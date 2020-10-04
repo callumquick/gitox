@@ -100,15 +100,13 @@ fn commit(submatches: &clap::ArgMatches<'_>) -> Result<()> {
 }
 
 fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
-    let mut parent = Some(base::get_oid(submatches.value_of("OID").unwrap())?);
-    while let Some(oid) = parent {
+    let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
+    for oid in base::iter_commits_and_parents([oid].iter().cloned())? {
         let commit = base::get_commit(&oid)?;
 
         println!("commit {}", oid);
         println!("    {}", commit.message);
         println!("");
-
-        parent = commit.parent;
     }
     Ok(())
 }
