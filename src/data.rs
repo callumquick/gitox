@@ -109,9 +109,10 @@ pub struct RefValue {
     pub value: Option<String>,
 }
 
-fn get_ref_internal(ref_: &str) -> Result<(String, RefValue)> {
+fn get_ref_internal(ref_: &str, deref: bool) -> Result<(String, RefValue)> {
     let ref_object = format!("{}/{}", GIT_DIR, ref_);
     let ref_path = Path::new(&ref_object);
+    let mut symbolic = false;
     let ref_value = match ref_path.exists() {
         false => None,
         true => Some(Oid::from_utf8_lossy(&fs::read(ref_path)?).to_string()),
@@ -119,36 +120,42 @@ fn get_ref_internal(ref_: &str) -> Result<(String, RefValue)> {
 
     if let Some(ref_value) = ref_value.clone() {
         if let Some(sym_ref) = ref_value.strip_prefix("ref: ") {
-            // Recursively dereference the symbolic ref
-            return get_ref_internal(sym_ref);
+            symbolic = true;
+            if deref {
+                // Recursively dereference the symbolic ref
+                return get_ref_internal(sym_ref, true);
+            }
         }
     }
 
     Ok((
         ref_.to_string(),
         RefValue {
-            symbolic: false,
+            symbolic,
             value: ref_value,
         },
     ))
 }
 
-pub fn update_ref(ref_: &str, value: RefValue) -> Result<()> {
-    assert!(!value.symbolic);
-    let ref_ = get_ref_internal(ref_).map(|(ref_, _)| ref_)?;
+pub fn update_ref(ref_: &str, value: RefValue, deref: bool) -> Result<()> {
+    let ref_ = get_ref_internal(ref_, deref).map(|(ref_, _)| ref_)?;
+
+    let raw_value = value
+        .value
+        .expect("Cannot update a reference with an empty value");
+    let raw_value: String = match value.symbolic {
+        true => "ref: ".to_string() + &raw_value,
+        false => raw_value,
+    };
+
     let ref_object = format!("{}/{}", GIT_DIR, ref_);
     let ref_path = Path::new(&ref_object);
     fs::create_dir_all(ref_path.parent().unwrap())?;
-    fs::write(
-        ref_object,
-        value
-            .value
-            .expect("Cannot update a reference with an empty value"),
-    )
+    fs::write(ref_object, raw_value)
 }
 
-pub fn get_ref(ref_: &str) -> Result<RefValue> {
-    get_ref_internal(ref_).map(|(_, value)| value)
+pub fn get_ref(ref_: &str, deref: bool) -> Result<RefValue> {
+    get_ref_internal(ref_, deref).map(|(_, value)| value)
 }
 
 fn append_ref_paths(mut v: Vec<String>, dir: &Path) -> Result<Vec<String>> {
@@ -171,14 +178,14 @@ fn append_ref_paths(mut v: Vec<String>, dir: &Path) -> Result<Vec<String>> {
     Ok(v)
 }
 
-pub fn iter_refs() -> Result<impl Iterator<Item = (String, Option<Oid>)>> {
+pub fn iter_refs(deref: bool) -> Result<impl Iterator<Item = (String, RefValue)>> {
     let mut refpaths: Vec<String> = Vec::new();
-    let mut refs: Vec<(String, Option<Oid>)> = Vec::new();
+    let mut refs = Vec::new();
     refpaths.push("HEAD".to_string());
     refpaths = append_ref_paths(refpaths, Path::new(REF_DIR))?;
     for refpath in refpaths {
-        let oid = get_ref(&refpath)?.value;
-        refs.push((refpath, oid));
+        let value = get_ref(&refpath, deref)?;
+        refs.push((refpath, value));
     }
     Ok(refs.into_iter())
 }

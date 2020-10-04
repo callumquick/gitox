@@ -36,11 +36,13 @@ fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
 
     dot_input.push("digraph commits {".to_string());
 
-    for (ref_, oid) in data::iter_refs()? {
-        if let Some(oid) = oid {
-            dot_input.push(format!("\"{}\" [shape=note]", ref_));
-            dot_input.push(format!("\"{}\" -> \"{}\"", ref_, oid));
-            oids.insert(oid);
+    for (refname, refvalue) in data::iter_refs(false)? {
+        if let Some(value) = refvalue.value {
+            dot_input.push(format!("\"{}\" [shape=note]", refname));
+            dot_input.push(format!("\"{}\" -> \"{}\"", refname, value));
+            if !refvalue.symbolic {
+                oids.insert(value);
+            }
         }
     }
 
@@ -122,6 +124,7 @@ fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
             symbolic: false,
             value: Some(oid),
         },
+        true,
     )
 }
 

@@ -218,7 +218,7 @@ impl TryFrom<String> for Commit {
 pub fn commit(message: &str) -> Result<Oid> {
     let commit = Commit {
         tree: write_tree(".")?,
-        parent: data::get_ref("HEAD")?.value,
+        parent: data::get_ref("HEAD", true)?.value,
         message: message.to_string(),
     };
     let commit_str: String = commit.into();
@@ -229,6 +229,7 @@ pub fn commit(message: &str) -> Result<Oid> {
             symbolic: false,
             value: Some(oid.clone()),
         },
+        true,
     )?;
     Ok(oid)
 }
@@ -250,6 +251,7 @@ pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
             symbolic: false,
             value: Some(oid.clone()),
         },
+        true,
     )
 }
 
@@ -261,6 +263,7 @@ pub fn create_branch(name: &str, oid: &Oid) -> Result<()> {
             symbolic: false,
             value: Some(oid.clone()),
         },
+        true,
     )
 }
 
@@ -278,8 +281,8 @@ pub fn get_oid(ref_: &str) -> Result<Oid> {
     ];
 
     for path in &paths_to_try {
-        if let Some(oid) = data::get_ref(&path)?.value {
-            return Ok(oid);
+        if let Some(value) = data::get_ref(&path, true)?.value {
+            return Ok(value);
         }
     }
 
