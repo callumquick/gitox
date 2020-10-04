@@ -1,4 +1,4 @@
-use crate::data::{self, ObjectType, Oid};
+use crate::data::{self, ObjectType, Oid, RefValue};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::{Into, TryFrom};
 use std::fs::{self, DirEntry};
@@ -218,12 +218,18 @@ impl TryFrom<String> for Commit {
 pub fn commit(message: &str) -> Result<Oid> {
     let commit = Commit {
         tree: write_tree(".")?,
-        parent: data::get_ref("HEAD")?,
+        parent: data::get_ref("HEAD")?.map(|value| value.value),
         message: message.to_string(),
     };
     let commit_str: String = commit.into();
     let oid = data::hash_object(commit_str.as_bytes(), ObjectType::Commit)?;
-    data::update_ref("HEAD", &oid)?;
+    data::update_ref(
+        "HEAD",
+        RefValue {
+            symbolic: false,
+            value: oid.clone(),
+        },
+    )?;
     Ok(oid)
 }
 
@@ -238,12 +244,24 @@ pub fn get_commit(oid: &Oid) -> Result<Commit> {
 
 pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
     let tag_path = format!("refs/tags/{}", name);
-    data::update_ref(&tag_path, oid)
+    data::update_ref(
+        &tag_path,
+        RefValue {
+            symbolic: false,
+            value: oid.clone(),
+        },
+    )
 }
 
 pub fn create_branch(name: &str, oid: &Oid) -> Result<()> {
-    let tag_path = format!("refs/heads/{}", name);
-    data::update_ref(&tag_path, oid)
+    let branch_path = format!("refs/heads/{}", name);
+    data::update_ref(
+        &branch_path,
+        RefValue {
+            symbolic: false,
+            value: oid.clone(),
+        },
+    )
 }
 
 /// Attempt to retrieve the OID from a reference, but otherwise return the
@@ -261,7 +279,7 @@ pub fn get_oid(ref_: &str) -> Result<Oid> {
 
     for path in &paths_to_try {
         if let Some(oid) = data::get_ref(&path)? {
-            return Ok(oid);
+            return Ok(oid.value);
         }
     }
 

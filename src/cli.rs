@@ -1,5 +1,5 @@
 use crate::base;
-use crate::data::{self, ObjectType, Oid};
+use crate::data::{self, ObjectType, Oid, RefValue};
 use std::collections::HashSet;
 use std::fs;
 use std::io::{Result, Write};
@@ -116,7 +116,13 @@ fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
     let commit = base::get_commit(&oid)?;
     base::read_tree(&commit.tree)?;
-    data::update_ref("HEAD", &oid)
+    data::update_ref(
+        "HEAD",
+        RefValue {
+            symbolic: false,
+            value: oid,
+        },
+    )
 }
 
 fn tag(submatches: &clap::ArgMatches<'_>) -> Result<()> {
