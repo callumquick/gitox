@@ -1,5 +1,5 @@
 use crate::data::{self, ObjectType, Oid};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::convert::{Into, TryFrom};
 use std::fs::{self, DirEntry};
 use std::io::{Error, ErrorKind, Result};
@@ -270,27 +270,18 @@ pub fn get_oid(ref_: &str) -> Result<Oid> {
     Ok(ref_.to_string())
 }
 
-trait HashSetExt<T> {
-    // HashSet does not have 'pop', which this approximates
-    fn pop(&mut self) -> T;
-}
-
-impl<T: Eq + Clone + std::hash::Hash> HashSetExt<T> for HashSet<T> {
-    fn pop(&mut self) -> T {
-        let item = self.iter().next().unwrap().clone();
-        self.take(&item).unwrap()
-    }
-}
-
+// When using this function, the input Oids should be unique and non-relational
+// (not the parent of another input Oid) to ensure that their order is preserved
+// when they are output from the resulting iterator.
 pub fn iter_commits_and_parents(
     oids: impl Iterator<Item = Oid>,
 ) -> Result<impl Iterator<Item = Oid>> {
     let mut commits: Vec<Oid> = Vec::new();
-    let mut oidset: HashSet<Oid> = oids.collect();
+    let mut oidqueue: VecDeque<Oid> = oids.collect();
     let mut visited: HashSet<Oid> = HashSet::new();
 
-    while !oidset.is_empty() {
-        let oid = oidset.pop();
+    while !oidqueue.is_empty() {
+        let oid = oidqueue.pop_front().unwrap();
 
         if !visited.insert(oid.clone()) {
             continue;
@@ -298,7 +289,8 @@ pub fn iter_commits_and_parents(
 
         let commit = get_commit(&oid)?;
         if commit.parent.is_some() {
-            oidset.insert(commit.parent.unwrap());
+            // Return parent next
+            oidqueue.push_front(commit.parent.unwrap());
         }
         commits.push(oid);
     }
