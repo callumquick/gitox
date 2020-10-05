@@ -28,6 +28,10 @@ fn main() -> std::io::Result<()> {
             (about: "Show commit logs")
             (@arg OID: default_value[HEAD] "Commit object to show the log for")
         )
+        (@subcommand show =>
+            (about: "Show commit object")
+            (@arg OID: default_value[HEAD] "Commit object to show")
+        )
         (@subcommand checkout =>
             (about: "Switch branches or restore working tree files")
             (@arg COMMIT: default_value[HEAD] "Commit or branch to checkout")

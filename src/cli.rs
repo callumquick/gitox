@@ -17,6 +17,7 @@ pub fn handle(matches: clap::ArgMatches) -> Result<()> {
         ("read-tree", Some(submatches)) => read_tree(submatches),
         ("commit", Some(submatches)) => commit(submatches),
         ("log", Some(submatches)) => log(submatches),
+        ("show", Some(submatches)) => show(submatches),
         ("checkout", Some(submatches)) => checkout(submatches),
         ("reset", Some(submatches)) => reset(submatches),
         ("tag", Some(submatches)) => tag(submatches),
@@ -143,6 +144,11 @@ fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
         print_commit(&oid, refs.get(&oid))?;
     }
     Ok(())
+}
+
+fn show(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
+    print_commit(&oid, None)
 }
 
 fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
