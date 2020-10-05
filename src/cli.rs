@@ -27,7 +27,7 @@ pub fn handle(matches: clap::ArgMatches) -> Result<()> {
 }
 
 fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
-    data::init()
+    base::init()
 }
 
 fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {

@@ -16,6 +16,18 @@ fn is_ignored(path: &Path) -> bool {
     false
 }
 
+pub fn init() -> Result<()> {
+    data::init()?;
+    data::update_ref(
+        "HEAD",
+        RefValue {
+            symbolic: true,
+            value: Some("refs/heads/master".to_string()),
+        },
+        true,
+    )
+}
+
 fn write_tree_entry(dir_entry: DirEntry) -> Result<String> {
     let path = dir_entry.path();
     let filename = dir_entry.file_name().into_string().unwrap();
