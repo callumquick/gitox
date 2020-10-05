@@ -305,6 +305,20 @@ pub fn create_branch(name: &str, oid: &Oid) -> Result<()> {
     )
 }
 
+pub fn get_branch_name() -> Result<Option<String>> {
+    let head = data::get_ref("HEAD", false)?;
+    if !head.symbolic {
+        return Ok(None);
+    }
+    let head = head.value;
+    match head {
+        None => Ok(None),
+        Some(refname) => Ok(refname
+            .strip_prefix("refs/heads/")
+            .map(|str_| str_.to_string())),
+    }
+}
+
 /// Attempt to retrieve the OID from a reference, but otherwise return the
 /// reference assuming it is itself an OID.
 pub fn get_oid(ref_: &str) -> Result<Oid> {

@@ -14,6 +14,9 @@ fn main() -> std::io::Result<()> {
         (@subcommand init =>
             (about: "Initialize the repository")
         )
+        (@subcommand status =>
+            (about: "Get repository status")
+        )
         (@subcommand k =>
             (about: "Visualize the repository")
         )

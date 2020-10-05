@@ -9,6 +9,7 @@ use std::process::{Command, Stdio};
 pub fn handle(matches: clap::ArgMatches) -> Result<()> {
     match matches.subcommand() {
         ("init", Some(submatches)) => init(submatches),
+        ("status", Some(submatches)) => status(submatches),
         ("k", Some(submatches)) => gitk(submatches),
         ("hash-file", Some(submatches)) => hash_file(submatches),
         ("cat-file", Some(submatches)) => cat_file(submatches),
@@ -28,6 +29,17 @@ pub fn handle(matches: clap::ArgMatches) -> Result<()> {
 
 fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
     base::init()
+}
+
+fn status(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let branch = base::get_branch_name()?;
+    if let Some(branch) = branch {
+        println!("On branch {}", branch);
+    } else {
+        let head = base::get_oid("HEAD")?;
+        println!("HEAD detached at {}", &head[..10]);
+    }
+    Ok(())
 }
 
 fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
