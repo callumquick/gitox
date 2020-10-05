@@ -1,6 +1,6 @@
 use crate::base;
 use crate::data::{self, ObjectType, Oid};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{Result, Write};
 use std::process::exit;
@@ -116,10 +116,23 @@ fn commit(submatches: &clap::ArgMatches<'_>) -> Result<()> {
 
 fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
-    for oid in base::iter_commits_and_parents([oid].iter().cloned())? {
-        let commit = base::get_commit(&oid)?;
 
-        println!("commit {}", oid);
+    // Construct a lookup from OID to refs which point to it in some way
+    let mut refs: HashMap<String, Vec<String>> = HashMap::new();
+    for (refname, refval) in data::iter_refs(None, true)? {
+        if let Some(value) = refval.value {
+            refs.entry(value).or_default().push(refname);
+        }
+    }
+
+    for oid in base::iter_commits_and_parents([oid].iter().cloned())? {
+        let ref_str = if let Some(oidrefs) = refs.get(&oid) {
+            format!(" ({})", oidrefs.join(", "))
+        } else {
+            "".to_string()
+        };
+        let commit = base::get_commit(&oid)?;
+        println!("commit {}{}", oid, ref_str);
         println!("    {}", commit.message);
         println!("");
     }
