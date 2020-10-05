@@ -178,14 +178,24 @@ fn append_ref_paths(mut v: Vec<String>, dir: &Path) -> Result<Vec<String>> {
     Ok(v)
 }
 
-pub fn iter_refs(deref: bool) -> Result<impl Iterator<Item = (String, RefValue)>> {
-    let mut refpaths: Vec<String> = Vec::new();
+pub fn iter_refs(
+    prefix: Option<&str>,
+    deref: bool,
+) -> Result<impl Iterator<Item = (String, RefValue)>> {
+    let mut refnames: Vec<String> = Vec::new();
     let mut refs = Vec::new();
-    refpaths.push("HEAD".to_string());
-    refpaths = append_ref_paths(refpaths, Path::new(REF_DIR))?;
-    for refpath in refpaths {
-        let value = get_ref(&refpath, deref)?;
-        refs.push((refpath, value));
+    refnames.push("HEAD".to_string());
+    refnames = append_ref_paths(refnames, Path::new(REF_DIR))?;
+
+    for refname in refnames {
+        if let Some(prefix) = prefix {
+            if !refname.starts_with(prefix) {
+                continue;
+            }
+        }
+        let value = get_ref(&refname, deref)?;
+        refs.push((refname, value));
     }
+
     Ok(refs.into_iter())
 }

@@ -38,8 +38,8 @@ fn main() -> std::io::Result<()> {
             (@arg OID: default_value[HEAD] "Commit to tag")
         )
         (@subcommand branch =>
-            (about: "Create a new branch")
-            (@arg NAME: +required "Branch name")
+            (about: "Create a new branch or show current branches")
+            (@arg NAME: !required "Branch to create")
             (@arg START: default_value[HEAD] "Start the branch at a given commit")
         )
     )

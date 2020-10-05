@@ -319,6 +319,11 @@ pub fn get_branch_name() -> Result<Option<String>> {
     }
 }
 
+pub fn iter_branch_names() -> Result<impl Iterator<Item = String>> {
+    Ok(data::iter_refs(Some("refs/heads/"), true)?
+        .map(|(refname, _)| refname.strip_prefix("refs/heads/").unwrap().to_string()))
+}
+
 /// Attempt to retrieve the OID from a reference, but otherwise return the
 /// reference assuming it is itself an OID.
 pub fn get_oid(ref_: &str) -> Result<Oid> {

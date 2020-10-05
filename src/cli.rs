@@ -48,7 +48,7 @@ fn gitk(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
 
     dot_input.push("digraph commits {".to_string());
 
-    for (refname, refvalue) in data::iter_refs(false)? {
+    for (refname, refvalue) in data::iter_refs(None, false)? {
         if let Some(value) = refvalue.value {
             dot_input.push(format!("\"{}\" [shape=note]", refname));
             dot_input.push(format!("\"{}\" -> \"{}\"", refname, value));
@@ -138,9 +138,21 @@ fn tag(submatches: &clap::ArgMatches<'_>) -> Result<()> {
 }
 
 fn branch(submatches: &clap::ArgMatches<'_>) -> Result<()> {
-    let name = submatches.value_of("NAME").unwrap();
-    let start = base::get_oid(submatches.value_of("START").unwrap())?;
-    base::create_branch(name, &start)?;
-    println!("Branch '{}' created at {}", name, &start[..10]);
+    let name = submatches.value_of("NAME");
+    if let Some(name) = name {
+        let start = base::get_oid(submatches.value_of("START").unwrap())?;
+        base::create_branch(name, &start)?;
+        println!("Branch '{}' created at {}", name, &start[..10]);
+    } else {
+        let current = base::get_branch_name()?;
+        for branch in base::iter_branch_names()? {
+            let prefix = if Some(&branch) == current.as_ref() {
+                "*"
+            } else {
+                " "
+            };
+            println!("{} {}", prefix, branch);
+        }
+    }
     Ok(())
 }
