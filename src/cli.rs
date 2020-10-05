@@ -115,6 +115,19 @@ fn commit(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     Ok(())
 }
 
+fn print_commit(oid: &Oid, refs: Option<&Vec<String>>) -> Result<()> {
+    let ref_str = if let Some(refs) = refs {
+        format!(" ({})", refs.join(", "))
+    } else {
+        "".to_string()
+    };
+    let commit = base::get_commit(oid)?;
+    println!("commit {}{}", oid, ref_str);
+    println!("    {}", commit.message);
+    println!("");
+    Ok(())
+}
+
 fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
 
@@ -127,15 +140,7 @@ fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     }
 
     for oid in base::iter_commits_and_parents([oid].iter().cloned())? {
-        let ref_str = if let Some(oidrefs) = refs.get(&oid) {
-            format!(" ({})", oidrefs.join(", "))
-        } else {
-            "".to_string()
-        };
-        let commit = base::get_commit(&oid)?;
-        println!("commit {}{}", oid, ref_str);
-        println!("    {}", commit.message);
-        println!("");
+        print_commit(&oid, refs.get(&oid))?;
     }
     Ok(())
 }
