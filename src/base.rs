@@ -65,7 +65,7 @@ pub fn write_tree<P: AsRef<Path>>(dir: P) -> Result<String> {
 
 struct TreeEntry {
     t: ObjectType,
-    oid: String,
+    oid: Oid,
     name: String,
 }
 
@@ -79,7 +79,11 @@ fn get_tree_entry(tree_entry: &str) -> Option<TreeEntry> {
     })
 }
 
-fn get_tree_entries(tree_oid: &Oid) -> Result<Vec<TreeEntry>> {
+fn get_tree_entries(tree_oid: Option<&Oid>) -> Result<Vec<TreeEntry>> {
+    if tree_oid.is_none() {
+        return Ok(Vec::new());
+    }
+    let tree_oid = tree_oid.unwrap();
     let tree_contents = data::get_object(&tree_oid.to_string(), Some(ObjectType::Tree))?.contents;
     let tree_string = String::from_utf8_lossy(&tree_contents);
     Ok(tree_string
@@ -88,8 +92,9 @@ fn get_tree_entries(tree_oid: &Oid) -> Result<Vec<TreeEntry>> {
         .collect())
 }
 
-fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> Result<HashMap<PathBuf, String>> {
-    let mut result = HashMap::new();
+pub type Tree = HashMap<PathBuf, Oid>;
+pub fn get_tree(tree_oid: Option<&Oid>, base_path: PathBuf) -> Result<Tree> {
+    let mut result = Tree::new();
     for entry in get_tree_entries(tree_oid)? {
         if entry.name == "." || entry.name == ".." || entry.name.contains('/') {
             return Err(Error::new(ErrorKind::Other, "Bad entry in tree object"));
@@ -110,7 +115,7 @@ fn get_tree(tree_oid: &Oid, base_path: PathBuf) -> Result<HashMap<PathBuf, Strin
                 }
             }
             ObjectType::Tree => {
-                result.extend(get_tree(&entry.oid, path)?);
+                result.extend(get_tree(Some(&entry.oid), path)?);
             }
             _ => {
                 // Other object types are not valid to be stored within tree
@@ -146,7 +151,7 @@ fn clear_dir<P: AsRef<Path>>(dir: P) -> Result<()> {
 pub fn read_tree(tree_oid: &Oid) -> Result<()> {
     let base_path = Path::new(".").to_path_buf();
     clear_dir(&base_path)?;
-    for (path, oid) in get_tree(tree_oid, base_path)? {
+    for (path, oid) in get_tree(Some(tree_oid), base_path)? {
         if let Some(parent) = path.parent() {
             if parent.is_dir() {
                 fs::create_dir_all(parent)?;

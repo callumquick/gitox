@@ -5,6 +5,7 @@ use clap::{Arg, SubCommand};
 mod base;
 mod cli;
 mod data;
+mod diff;
 
 fn main() -> std::io::Result<()> {
     let matches = clap_app!(gitox =>
