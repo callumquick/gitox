@@ -281,6 +281,20 @@ pub fn checkout(name: &str) -> Result<()> {
     data::update_ref("HEAD", head, false)
 }
 
+pub fn reset(oid: Oid) -> Result<()> {
+    let commit = get_commit(&oid)?;
+    read_tree(&commit.tree)?;
+
+    data::update_ref(
+        "HEAD",
+        RefValue {
+            symbolic: false,
+            value: Some(oid),
+        },
+        true,
+    )
+}
+
 pub fn create_tag(name: &str, oid: &Oid) -> Result<()> {
     let tag_path = format!("refs/tags/{}", name);
     data::update_ref(

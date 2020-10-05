@@ -32,6 +32,10 @@ fn main() -> std::io::Result<()> {
             (about: "Switch branches or restore working tree files")
             (@arg COMMIT: default_value[HEAD] "Commit or branch to checkout")
         )
+        (@subcommand reset =>
+            (about: "Reset working directory to commit")
+            (@arg COMMIT: default_value[HEAD] "Commit to reset to")
+        )
         (@subcommand tag =>
             (about: "Create tag object referencing a commit")
             (@arg NAME: +required "Tag name")

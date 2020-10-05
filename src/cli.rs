@@ -18,6 +18,7 @@ pub fn handle(matches: clap::ArgMatches) -> Result<()> {
         ("commit", Some(submatches)) => commit(submatches),
         ("log", Some(submatches)) => log(submatches),
         ("checkout", Some(submatches)) => checkout(submatches),
+        ("reset", Some(submatches)) => reset(submatches),
         ("tag", Some(submatches)) => tag(submatches),
         ("branch", Some(submatches)) => branch(submatches),
         _ => {
@@ -142,6 +143,12 @@ fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
 fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let name = submatches.value_of("COMMIT").unwrap();
     base::checkout(name)
+}
+
+fn reset(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let name = submatches.value_of("COMMIT").unwrap();
+    let oid = base::get_oid(name)?;
+    base::reset(oid)
 }
 
 fn tag(submatches: &clap::ArgMatches<'_>) -> Result<()> {
