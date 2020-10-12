@@ -1,4 +1,5 @@
 use sha1::{Digest, Sha1};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fs;
 use std::io::{Error, ErrorKind, Result};
@@ -198,4 +199,15 @@ pub fn iter_refs(
     }
 
     Ok(refs.into_iter())
+}
+
+// Construct a lookup from OIDs to refs which point to it in some way
+pub fn get_oid_to_refs() -> Result<HashMap<Oid, Vec<String>>> {
+    let mut refs: HashMap<Oid, Vec<String>> = HashMap::new();
+    for (refname, refval) in iter_refs(None, true)? {
+        if let Some(value) = refval.value {
+            refs.entry(value).or_default().push(refname);
+        }
+    }
+    Ok(refs)
 }

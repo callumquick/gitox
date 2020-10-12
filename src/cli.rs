@@ -1,9 +1,9 @@
 use crate::base;
 use crate::data::{self, ObjectType, Oid};
 use crate::diff;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
-use std::io::{Result, Write};
+use std::io::{self, Result, Write};
 use std::path::Path;
 use std::process::exit;
 use std::process::{Command, Stdio};
@@ -132,15 +132,7 @@ fn print_commit(oid: &Oid, commit: base::Commit, refs: Option<&Vec<String>>) -> 
 
 fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
-
-    // Construct a lookup from OID to refs which point to it in some way
-    let mut refs: HashMap<String, Vec<String>> = HashMap::new();
-    for (refname, refval) in data::iter_refs(None, true)? {
-        if let Some(value) = refval.value {
-            refs.entry(value).or_default().push(refname);
-        }
-    }
-
+    let refs = data::get_oid_to_refs()?;
     for oid in base::iter_commits_and_parents([oid].iter().cloned())? {
         let commit = base::get_commit(&oid)?;
         print_commit(&oid, commit, refs.get(&oid))?;
@@ -151,6 +143,8 @@ fn log(submatches: &clap::ArgMatches<'_>) -> Result<()> {
 fn show(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let oid = base::get_oid(submatches.value_of("OID").unwrap())?;
     let commit = base::get_commit(&oid)?;
+    let oid_to_refs = data::get_oid_to_refs()?;
+    let refs = oid_to_refs.get(&oid);
 
     let base_path = Path::new("").to_path_buf();
     let parent_tree = base::get_tree(
@@ -166,9 +160,9 @@ fn show(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let commit_tree = base::get_tree(Some(&commit.tree), base_path)?;
     let result = diff::diff_trees(parent_tree, commit_tree)?;
 
-    print_commit(&oid, commit, None)?;
-    println!("{}", result);
-    Ok(())
+    print_commit(&oid, commit, refs)?;
+    io::stdout().flush()?;
+    io::stdout().write_all(&result)
 }
 
 fn checkout(submatches: &clap::ArgMatches<'_>) -> Result<()> {
