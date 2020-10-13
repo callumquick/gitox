@@ -6,17 +6,23 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use tempfile;
 
-pub fn compare_trees(trees: &[Tree]) -> Result<impl Iterator<Item = (PathBuf, Vec<Oid>)>> {
-    let mut entries: HashMap<PathBuf, Vec<Oid>> = HashMap::new();
+fn get_none_vector<T>(len: usize) -> Vec<Option<T>> {
+    let mut empty = Vec::new();
+    for _ in 0..len {
+        empty.push(None);
+    }
+    empty
+}
 
-    for tree in trees {
+pub fn compare_trees(trees: &[Tree]) -> Result<impl Iterator<Item = (PathBuf, Vec<Option<Oid>>)>> {
+    let mut entries: HashMap<PathBuf, Vec<Option<Oid>>> = HashMap::new();
+
+    for (i, tree) in trees.iter().enumerate() {
         for (path, oid) in tree.iter() {
-            // TODO Maybe need to pad the Vec with None where the tree does not
-            // contain a certain path?
-            entries
+            let oids = entries
                 .entry(path.to_path_buf())
-                .or_default()
-                .push(oid.to_string());
+                .or_insert_with(|| get_none_vector(trees.len()));
+            oids[i] = Some(oid.to_string());
         }
     }
 
@@ -26,10 +32,10 @@ pub fn compare_trees(trees: &[Tree]) -> Result<impl Iterator<Item = (PathBuf, Ve
 pub fn diff_trees(t_from: Tree, t_to: Tree) -> Result<Vec<u8>> {
     let mut output = Vec::new();
     for (path, objects) in compare_trees(&[t_from, t_to])? {
-        let o_from = objects.get(0);
-        let o_to = objects.get(1);
+        let o_from = objects.get(0).unwrap();
+        let o_to = objects.get(1).unwrap();
         if o_from != o_to {
-            output.append(&mut diff_blobs(o_from, o_to, Some(path))?);
+            output.append(&mut diff_blobs(o_from.as_ref(), o_to.as_ref(), Some(path))?);
         }
     }
     Ok(output)
