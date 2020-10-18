@@ -4,6 +4,7 @@ use std::convert::{Into, TryFrom};
 use std::fs::{self, DirEntry};
 use std::io::{Error, ErrorKind, Result};
 use std::path::{Component, Path, PathBuf};
+use walkdir::WalkDir;
 
 fn is_ignored(path: &Path) -> bool {
     for component in path.components() {
@@ -126,6 +127,22 @@ pub fn get_tree(tree_oid: Option<&Oid>, base_path: PathBuf) -> Result<Tree> {
                 ));
             }
         }
+    }
+    Ok(result)
+}
+
+pub fn get_working_tree() -> Result<Tree> {
+    let mut result = Tree::new();
+    for entry in WalkDir::new(".") {
+        let entry = entry?;
+        let path = entry.path().strip_prefix(".").unwrap();
+        if is_ignored(&path) || !path.is_file() {
+            continue;
+        }
+        result.insert(
+            path.to_path_buf(),
+            data::hash_object(&fs::read(&path)?, ObjectType::Blob)?,
+        );
     }
     Ok(result)
 }

@@ -170,9 +170,8 @@ fn append_ref_paths(mut v: Vec<String>, dir: &Path) -> Result<Vec<String>> {
                     .path()
                     .strip_prefix(GIT_DIR)
                     .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_string(),
+                    .to_string_lossy()
+                    .into_owned(),
             );
         }
     }

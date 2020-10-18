@@ -29,6 +29,28 @@ pub fn compare_trees(trees: &[Tree]) -> Result<impl Iterator<Item = (PathBuf, Ve
     Ok(entries.into_iter())
 }
 
+pub fn iter_changed_files(
+    t_from: Tree,
+    t_to: Tree,
+) -> Result<impl Iterator<Item = (PathBuf, String)>> {
+    let mut output = Vec::new();
+    for (path, objects) in compare_trees(&[t_from, t_to])? {
+        let o_from = objects.get(0).unwrap();
+        let o_to = objects.get(1).unwrap();
+        if o_from != o_to {
+            let action = if o_from.is_none() {
+                "new file".to_string()
+            } else if o_to.is_none() {
+                "deleted".to_string()
+            } else {
+                "modified".to_string()
+            };
+            output.push((path, action));
+        }
+    }
+    Ok(output.into_iter())
+}
+
 pub fn diff_trees(t_from: Tree, t_to: Tree) -> Result<Vec<u8>> {
     let mut output = Vec::new();
     for (path, objects) in compare_trees(&[t_from, t_to])? {
@@ -49,7 +71,7 @@ pub fn diff_blobs(
     let mut f_from = tempfile::NamedTempFile::new()?;
     let mut f_to = tempfile::NamedTempFile::new()?;
     let path = path
-        .map(|buf| buf.to_str().unwrap().to_string())
+        .map(|buf| buf.to_string_lossy().into_owned())
         .unwrap_or("blob".to_string());
 
     if o_from.is_some() {

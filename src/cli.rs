@@ -20,6 +20,7 @@ pub fn handle(matches: clap::ArgMatches) -> Result<()> {
         ("commit", Some(submatches)) => commit(submatches),
         ("log", Some(submatches)) => log(submatches),
         ("show", Some(submatches)) => show(submatches),
+        ("diff", Some(submatches)) => diff(submatches),
         ("checkout", Some(submatches)) => checkout(submatches),
         ("reset", Some(submatches)) => reset(submatches),
         ("tag", Some(submatches)) => tag(submatches),
@@ -36,13 +37,23 @@ fn init(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
 }
 
 fn status(_submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let head = base::get_oid("HEAD")?;
     let branch = base::get_branch_name()?;
     if let Some(branch) = branch {
         println!("On branch {}", branch);
     } else {
-        let head = base::get_oid("HEAD")?;
         println!("HEAD detached at {}", &head[..10]);
     }
+
+    println!("\nChanges to be committed:");
+    let head_tree = base::get_commit(&head)?.tree;
+    for (path, action) in diff::iter_changed_files(
+        base::get_tree(Some(&head_tree), Path::new("").to_path_buf())?,
+        base::get_working_tree()?,
+    )? {
+        println!("{:>12}: {}", action, path.to_string_lossy());
+    }
+
     Ok(())
 }
 
@@ -161,6 +172,18 @@ fn show(submatches: &clap::ArgMatches<'_>) -> Result<()> {
     let result = diff::diff_trees(parent_tree, commit_tree)?;
 
     print_commit(&oid, commit, refs)?;
+    io::stdout().flush()?;
+    io::stdout().write_all(&result)
+}
+
+fn diff(submatches: &clap::ArgMatches<'_>) -> Result<()> {
+    let oid = base::get_oid(submatches.value_of("COMMIT").unwrap())?;
+    let commit = base::get_commit(&oid)?;
+    let base_path = Path::new("").to_path_buf();
+    let result = diff::diff_trees(
+        base::get_tree(Some(&commit.tree), base_path)?,
+        base::get_working_tree()?,
+    )?;
     io::stdout().flush()?;
     io::stdout().write_all(&result)
 }
